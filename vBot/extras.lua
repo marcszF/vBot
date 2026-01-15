@@ -643,6 +643,21 @@ if true then
   end)
 end
 
+local function parseCsv(value, mapper)
+  local list = {}
+  if not value or value:len() == 0 then return list end
+  for _, entry in ipairs(string.split(value, ",")) do
+    local parsed = entry:trim()
+    if mapper then
+      parsed = mapper(parsed)
+    end
+    if parsed and parsed ~= "" then
+      table.insert(list, parsed)
+    end
+  end
+  return list
+end
+
 addCheckBox("autoReconnect", "Auto Reconnect", false, rightPanel, "Reconnect to the last character after disconnect.")
 addScrollBar("autoReconnectDelay", "Reconnect Delay (s)", 1, 120, 5, rightPanel, "Delay in seconds between reconnect attempts.")
 addTextEdit("autoReconnectCharacter", "Reconnect Character", "", rightPanel, "Optional: force reconnect to this character name.")
@@ -671,9 +686,7 @@ if true then
     if not root or not root.charactersWindow or not root.charactersWindow:isVisible() then return end
 
     local charName = settings.autoReconnectCharacter
-    if not charName or charName:len() == 0 then
-      charName = settings.autoReconnectLast
-    end
+    charName = (charName and charName:len() > 0) and charName or settings.autoReconnectLast
     if not charName or charName:len() == 0 then return end
 
     relogOnCharacter(charName)
@@ -790,18 +803,6 @@ addCheckBox("houseTrainer", "House Trainer", false, rightPanel, "Attack training
 addTextEdit("houseTrainerNames", "Trainer Names", "training", rightPanel, "Comma-separated trainer names to attack.")
 addScrollBar("houseTrainerRange", "Trainer Range", 1, 10, 3, rightPanel, "Maximum distance to trainer.")
 if true then
-  local function parseNameList(value)
-    local list = {}
-    if not value or value:len() == 0 then return list end
-    for _, entry in ipairs(string.split(value, ",")) do
-      local name = entry:trim():lower()
-      if name:len() > 0 then
-        table.insert(list, name)
-      end
-    end
-    return list
-  end
-
   local function isTrainer(creature, names)
     local cname = creature:getName():lower()
     for _, name in ipairs(names) do
@@ -814,7 +815,7 @@ if true then
 
   macro(1000, function()
     if not settings.houseTrainer or not isInPz() then return end
-    local names = parseNameList(settings.houseTrainerNames)
+    local names = parseCsv(settings.houseTrainerNames, function(value) return value:lower() end)
     if #names == 0 then return end
     if g_game.isAttacking() and target() and not isTrainer(target(), names) then return end
     local maxRange = tonumber(settings.houseTrainerRange or 3)
@@ -838,12 +839,7 @@ if true then
   local function getBossNames()
     local names = {}
     if settings.bossDodgeNames and settings.bossDodgeNames:len() > 0 then
-      for _, entry in ipairs(string.split(settings.bossDodgeNames, ",")) do
-        local name = entry:trim():lower()
-        if name:len() > 0 then
-          table.insert(names, name)
-        end
-      end
+      names = parseCsv(settings.bossDodgeNames, function(value) return value:lower() end)
     elseif storage.EquipperPanel and type(storage.EquipperPanel.bosses) == "table" then
       for _, boss in ipairs(storage.EquipperPanel.bosses) do
         if boss and boss:len() > 0 then
@@ -937,7 +933,8 @@ if true then
   end
 
   macro(1000, function()
-    if not settings.taskRenew or not storage.caveBotTasker or storage.caveBotTasker.inProgress then return end
+    local taskData = storage.caveBotTasker
+    if not settings.taskRenew or not taskData or taskData.inProgress then return end
     if not hasTaskNpc() then return end
     if not settings.taskRenewCommand or settings.taskRenewCommand:len() == 0 then return end
     local delay = (settings.taskRenewDelay or 30) * 1000
@@ -991,23 +988,11 @@ addScrollBar("antiPushDropDelay", "Anti-Push Delay (ms)", 100, 5000, 600, rightP
 if true then
   local lastDrop = 0
 
-  local function parseItemIds(value)
-    local list = {}
-    if not value or value:len() == 0 then return list end
-    for _, entry in ipairs(string.split(value, ",")) do
-      local id = tonumber(entry:trim())
-      if id then
-        table.insert(list, id)
-      end
-    end
-    return list
-  end
-
   macro(100, function()
     if not settings.antiPushDrop then return end
     local delay = tonumber(settings.antiPushDropDelay or 600)
     if now - lastDrop < delay then return end
-    local ids = parseItemIds(settings.antiPushDropItems)
+    local ids = parseCsv(settings.antiPushDropItems, tonumber)
     if #ids == 0 then return end
 
     local tile = g_map.getTile(pos())
