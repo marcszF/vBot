@@ -1,7 +1,16 @@
-local quiverSlot = modules.game_inventory.inventoryWindow:recursiveGetChildById('slot5')
-local label = quiverSlot.count
+local label
 
-label = label or g_ui.loadUIFromString([[
+local function ensureLabel()
+    if label then return label end
+
+    local inventoryWindow = modules.game_inventory and modules.game_inventory.inventoryWindow
+    if not inventoryWindow then return nil end
+
+    local quiverSlot = inventoryWindow:recursiveGetChildById('slot5')
+    if not quiverSlot then return nil end
+
+    label = quiverSlot.count
+    label = label or g_ui.loadUIFromString([[
 Label
   id: count
   color: #bfbfbf
@@ -14,11 +23,16 @@ Label
   margin-left: 3
   text:
 ]], quiverSlot)
+    return label
+end
 
 
 function getQuiverAmount()
     -- old tibia
     if g_game.getClientVersion() < 1000 then return end
+
+    local quiverLabel = ensureLabel()
+    if not quiverLabel then return end
 
 
     local isQuiverEquipped = getRight() and getRight():isContainer() or false
@@ -30,10 +44,10 @@ function getQuiverAmount()
             count = count + item:getCount()
         end
     else
-        return label:setText("")
+        return quiverLabel:setText("")
     end
 
-    return label:setText(count)
+    return quiverLabel:setText(count)
 end
 getQuiverAmount()
 
