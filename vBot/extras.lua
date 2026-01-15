@@ -71,12 +71,27 @@ local function addToggleIcon(id, data)
   end)
   if icon then
     iconWidgets[id] = icon
-    icon:setOn(settings[id])
+    icon:setOn(not not settings[id])
   end
   return icon
 end
 
-local addItem = function(id, title, defaultItem, dest, tooltip)
+local function setIconItem(iconId, itemId, fallback)
+  local icon = iconWidgets[iconId]
+  if not icon then return end
+  local resolved = tonumber(itemId)
+  if resolved == nil then
+    resolved = tonumber(fallback)
+  end
+  if not resolved or resolved <= 0 then return end
+  if icon.setItemId then
+    icon:setItemId(resolved)
+  elseif icon.item and icon.item.setItemId then
+    icon.item:setItemId(resolved)
+  end
+end
+
+local addItem = function(id, title, defaultItem, dest, tooltip, onChange)
   local widget = UI.createWidget('ExtrasItem', dest)
   widget.text:setText(title)
   widget.text:setTooltip(tooltip)
@@ -84,19 +99,33 @@ local addItem = function(id, title, defaultItem, dest, tooltip)
   widget.item:setItemId(settings[id] or defaultItem)
   widget.item.onItemChange = function(widget)
     settings[id] = widget:getItemId()
+    if onChange then
+      onChange(settings[id], widget)
+    end
   end
   settings[id] = settings[id] or defaultItem
+  if onChange then
+    onChange(settings[id], widget.item)
+  end
+  return widget
 end
 
-local addTextEdit = function(id, title, defaultValue, dest, tooltip)
+local addTextEdit = function(id, title, defaultValue, dest, tooltip, onChange)
   local widget = UI.createWidget('ExtrasTextEdit', dest)
   widget.text:setText(title)
   widget.textEdit:setText(settings[id] or defaultValue or "")
   widget.text:setTooltip(tooltip)
   widget.textEdit.onTextChange = function(widget,text)
     settings[id] = text
+    if onChange then
+      onChange(text, widget)
+    end
   end
   settings[id] = settings[id] or defaultValue or ""
+  if onChange then
+    onChange(settings[id], widget.textEdit)
+  end
+  return widget
 end
 
 local addScrollBar = function(id, title, min, max, defaultValue, dest, tooltip)
@@ -690,7 +719,7 @@ end
 addCheckBox("autoReconnect", "Auto Reconnect", false, rightPanel, "Reconnect to the last character after disconnect.")
 addScrollBar("autoReconnectDelay", "Reconnect Delay (s)", 1, 120, 5, rightPanel, "Delay in seconds between reconnect attempts.")
 addTextEdit("autoReconnectCharacter", "Reconnect Character", "", rightPanel, "Optional: force reconnect to this character name.")
-addToggleIcon("autoReconnect", {text = "AR", item = 3031})
+addToggleIcon("autoReconnect", {text = "AR", item = 3031, tooltip = "Auto Reconnect"})
 if true then
   settings.autoReconnectLast = settings.autoReconnectLast or ""
   local lastReconnect = 0
@@ -737,7 +766,7 @@ end
 
 addCheckBox("bossRaidTimer", "Boss/Raid Timer", false, rightPanel, "Warns before fixed boss/raid schedule.")
 addScrollBar("bossRaidWarn", "Boss/Raid Warn (min)", 1, 60, 5, rightPanel, "Minutes before event to warn.")
-addToggleIcon("bossRaidTimer", {text = "BR", item = 3031})
+addToggleIcon("bossRaidTimer", {text = "BR", item = 3031, tooltip = "Boss/Raid Timer"})
 if true then
   local bossRaidSchedule = {"01:30","03:30","05:30","07:30","09:30","11:30","13:30","15:30","17:30","19:30","21:30","23:30"}
   local lastAlarmTime = ""
@@ -775,9 +804,11 @@ if true then
 end
 
 addCheckBox("staminaPotion", "Auto Stamina Potion", false, rightPanel, "Use stamina potion when stamina is below set value.")
-addItem("staminaPotionId", "Stamina Potion", 36725, rightPanel, "Item ID used for stamina potion.")
+addItem("staminaPotionId", "Stamina Potion", 36725, rightPanel, "Item ID used for stamina potion.", function(value)
+  setIconItem("staminaPotion", value, 36725)
+end)
 addScrollBar("staminaPotionValue", "Stamina Potion Below", 0, 2520, 2340, rightPanel, "Stamina value in minutes.")
-addToggleIcon("staminaPotion", {text = "SP", item = tonumber(settings.staminaPotionId) or 36725})
+addToggleIcon("staminaPotion", {text = "SP", item = tonumber(settings.staminaPotionId) or 36725, tooltip = "Stamina Potion"})
 if true then
   local lastStaminaUse = 0
   macro(1000, function()
@@ -805,13 +836,17 @@ if true then
 end
 
 addCheckBox("storeSell", "Store Sell Item", false, rightPanel, "Use store sell item to sell loot.")
-addItem("storeSellItemId", "Store Sell Item", 54995, rightPanel, "Item ID for store sell item.")
+addItem("storeSellItemId", "Store Sell Item", 54995, rightPanel, "Item ID for store sell item.", function(value)
+  setIconItem("storeSell", value, 54995)
+end)
 addCheckBox("storeBank", "Store Bank Item", false, rightPanel, "Use store bank item to deposit gold.")
-addItem("storeBankItemId", "Store Bank Item", 54991, rightPanel, "Item ID for store bank item.")
+addItem("storeBankItemId", "Store Bank Item", 54991, rightPanel, "Item ID for store bank item.", function(value)
+  setIconItem("storeBank", value, 54991)
+end)
 addScrollBar("storeItemDelay", "Store Item Delay (s)", 1, 60, 5, rightPanel, "Delay in seconds between sell and bank.")
 addScrollBar("storeItemInterval", "Store Item Interval (s)", 5, 300, 30, rightPanel, "Interval between sell/bank cycles.")
-addToggleIcon("storeSell", {text = "SS", item = tonumber(settings.storeSellItemId) or 54995})
-addToggleIcon("storeBank", {text = "SB", item = tonumber(settings.storeBankItemId) or 54991})
+addToggleIcon("storeSell", {text = "SS", item = tonumber(settings.storeSellItemId) or 54995, tooltip = "Store Sell"})
+addToggleIcon("storeBank", {text = "SB", item = tonumber(settings.storeBankItemId) or 54991, tooltip = "Store Bank"})
 if true then
   local lastStoreUse = 0
 
@@ -848,15 +883,26 @@ end
 
 addCheckBox("houseTrainer", "House Trainer", false, rightPanel, "Use wands on training dummy when nearby.")
 addTextEdit("houseTrainerDummyPos", "Dummy Position", "1051,1043,7", rightPanel, "Position of the dummy (x,y,z).")
-addTextEdit("houseTrainerDummyId", "Dummy Item ID", "54005", rightPanel, "Item ID used for the training dummy.")
-addTextEdit("houseTrainerWands", "Wand IDs", "55486,55484,55634,55485", rightPanel, "Comma-separated wand IDs to use.")
+local function updateHouseTrainerIcon()
+  local wandId = settings.houseTrainerWands and settings.houseTrainerWands:match("(%d+)")
+  local iconItem = tonumber(wandId) or tonumber(settings.houseTrainerDummyId) or 54005
+  setIconItem("houseTrainer", iconItem, 54005)
+end
+
+addTextEdit("houseTrainerDummyId", "Dummy Item ID", "54005", rightPanel, "Item ID used for the training dummy.", function()
+  updateHouseTrainerIcon()
+end)
+addTextEdit("houseTrainerWands", "Wand IDs", "55486,55484,55634,55485", rightPanel, "Comma-separated wand IDs to use.", function()
+  updateHouseTrainerIcon()
+end)
 addScrollBar("houseTrainerRange", "Trainer Range", 1, 10, 3, rightPanel, "Maximum distance to dummy.")
 addScrollBar("houseTrainerDelay", "Trainer Delay (ms)", 200, 5000, 1500, rightPanel, "Delay between wand uses.")
 local houseTrainerIconItem = tonumber(settings.houseTrainerDummyId) or 54005
 if settings.houseTrainerWands and settings.houseTrainerWands:len() > 0 then
   houseTrainerIconItem = tonumber(settings.houseTrainerWands:match("(%d+)")) or houseTrainerIconItem
 end
-addToggleIcon("houseTrainer", {text = "HT", item = houseTrainerIconItem})
+addToggleIcon("houseTrainer", {text = "HT", item = houseTrainerIconItem, tooltip = "House Trainer"})
+updateHouseTrainerIcon()
 if true then
   local lastTrainerUse = 0
 
@@ -903,9 +949,11 @@ if true then
 end
 
 addCheckBox("bossDodge", "Boss Dodge", false, rightPanel, "Move away from forbidden boss tiles.")
-addTextEdit("bossDodgeItemId", "Boss Dodge Item ID", "55636", rightPanel, "Item ID to avoid when boss is active.")
+addTextEdit("bossDodgeItemId", "Boss Dodge Item ID", "55636", rightPanel, "Item ID to avoid when boss is active.", function(value)
+  setIconItem("bossDodge", value, 55636)
+end)
 addScrollBar("bossDodgeRange", "Boss Dodge Range", 1, 10, 7, rightPanel, "Search range for a safe tile.")
-addToggleIcon("bossDodge", {text = "BD", item = tonumber(settings.bossDodgeItemId) or 55636})
+addToggleIcon("bossDodge", {text = "BD", item = tonumber(settings.bossDodgeItemId) or 55636, tooltip = "Boss Dodge"})
 if true then
   local function hasItemOnPos(pos, itemId)
     local tile = g_map.getTile(pos)
@@ -956,7 +1004,7 @@ addCheckBox("buffRenew", "Buff Renew", false, rightPanel, "Recast buff spell whe
 addTextEdit("buffRenewSpell", "Buff Spell", "utito tempo san", rightPanel, "Spell to keep active (e.g. utito tempo).")
 addScrollBar("buffRenewMana", "Buff Min Mana %", 0, 100, 20, rightPanel, "Minimum mana percent to cast.")
 addScrollBar("buffRenewDelay", "Buff Delay (s)", 1, 60, 5, rightPanel, "Delay between buff attempts.")
-addToggleIcon("buffRenew", {text = "BF", item = 3031})
+addToggleIcon("buffRenew", {text = "BF", item = 3031, tooltip = "Buff Renew"})
 if true then
   local lastBuff = 0
   macro(500, function()
@@ -975,7 +1023,7 @@ addCheckBox("taskRenew", "Task Renew", false, rightPanel, "Send task command whe
 addTextEdit("taskRenewNpc", "Task NPC", "", rightPanel, "Optional NPC name to be nearby.")
 addTextEdit("taskRenewCommand", "Task Command", "!taskrenew", rightPanel, "Command to request a task.")
 addScrollBar("taskRenewDelay", "Task Renew Delay (s)", 5, 120, 120, rightPanel, "Delay between attempts.")
-addToggleIcon("taskRenew", {text = "TR", item = 3031})
+addToggleIcon("taskRenew", {text = "TR", item = 3031, tooltip = "Task Renew"})
 if true then
   local lastTaskRenew = 0
 
@@ -1004,7 +1052,7 @@ addCheckBox("turboFollow", "Turbo Follow", false, rightPanel, "Aggressive follow
 addTextEdit("turboFollowName", "Turbo Follow Name", "", rightPanel, "Name of the creature to follow.")
 addScrollBar("turboFollowDelay", "Turbo Follow Delay (ms)", 50, 2000, 100, rightPanel, "Delay between follow steps.")
 addScrollBar("turboFollowDistance", "Turbo Follow Distance", 1, 10, 1, rightPanel, "Follow when farther than this distance.")
-addToggleIcon("turboFollow", {text = "TF", item = 3031})
+addToggleIcon("turboFollow", {text = "TF", item = 3031, tooltip = "Turbo Follow"})
 if true then
   local useIds = {433,435,482,1948,1968,5542,7771,9116,12799,17230,20469,20474,20488,20489,20895,20896,28209,28210,28656,31129,31130,31262,33770,34324,43374}
   local stepIds = {166,167,413,427,427,428,433,437,438,465,468,566,855,856,857,1947,1950,1951,1952,1953,1954,1955,1956,1957,1958,1977,1978,4823,5081,5257,5258,5259,7881,7888,8657,8658,8690,8932,10206,11707,11709,14133,15144,15145,15146,15147,15718,16272,17394,17395,15590,15591,20123,20124,20142,20224,20225,20253,20254,20255,20256,20257,20258,20259,20328,20329,20330,20331,20332,20333,20334,20335,20336,20491,20492,20493,20494,20495,20496,20750,20751,20752,20753,20754,20755,21365,21564,21566,21568,21570,21156,22517,22565,22566,22749,29111,31907,39919,39921,39923,39925,40262,40263,40279,40281,40296,40298,40302,40428,40430,40432,40434,42619,42621,42623,42632,43134,42395,42391,23483,1967,1966,293,294,369,370,385,394,411,412,414,426,432,434,469,476,483,484,485,594,595,600,601,602,607,609,610,615,868,874,877,1066,1067,1080,1156,4824,4825,4826,5544,5691,5731,5763,6127,6128,6129,6130,6172,6173,6754,6755,6756,6916,7053,7181,7182,7476,7477,7478,7479,7515,7516,7517,7518,7520,7521,7522,7729,7730,7731,7732,7733,7734,7735,7736,7737,7755,7764,8144,8709,8924,12200,12236,12797,12798,12939,12940,12941,12942,12943,12944,12945,12946,12947,12948,12949,12950,12951,12952,12953,12954,12955,12956,12957,12958,12959,12960,14134,16265,16266,16267,16268,16269,16270,16271,16696,16697,16698,16699,16700,16701,16702,16703,16785,16786,16787,16788,16789,16790,16791,16792,17239,18642,18643,18644,18645,18646,18647,18648,18649,19143,19220,20260,20261,20262,20263,20344,20470,20471,20472,20073,21034,21342,21344,21971,21972,21973,22157,22748,23364,27628,28655,30452,30453,31168,32020,33709,34166,34255,38831,38832,43372,6920,505,628,775,878,1756,1761,1949,1959,5022,5756,8193,11552,11553,12795,15320,19243,20142,21739,21740,21741,21743,22106,22747,22761,23482,25047,25049,25051,25052,25053,25054,25055,25056,25057,25058,27589,27590,27658,28671,29975,29979,29980,32974,33004,33005,33006,33007,33790,34111,35502,36972,37000,37001,31469,37065,5068,5069,44027,32979,23483}
@@ -1099,10 +1147,15 @@ if true then
 end
 
 addCheckBox("antiPushDrop", "Anti-Push Drop", false, rightPanel, "Drop items under you to avoid being pushed.")
-addTextEdit("antiPushDropItems", "Anti-Push Items", "3031,3035", rightPanel, "Comma-separated item IDs to drop.")
+addTextEdit("antiPushDropItems", "Anti-Push Items", "3031,3035", rightPanel, "Comma-separated item IDs to drop.", function(value)
+  local items = parseCsv(value, tonumber) or {}
+  setIconItem("antiPushDrop", items[1] or 3031, 3031)
+end)
 addScrollBar("antiPushDropMax", "Anti-Push Stack Max", 1, 20, 10, rightPanel, "Max stacked items under you.")
 addScrollBar("antiPushDropDelay", "Anti-Push Delay (ms)", 100, 5000, 600, rightPanel, "Delay between drops.")
-addToggleIcon("antiPushDrop", {text = "AP", item = 3031})
+local antiPushItems = parseCsv(settings.antiPushDropItems, tonumber) or {}
+local antiPushIconItem = antiPushItems[1] or 3031
+addToggleIcon("antiPushDrop", {text = "AP", item = antiPushIconItem, tooltip = "Anti-Push Drop"})
 if true then
   local lastDrop = 0
 
