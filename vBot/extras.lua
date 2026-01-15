@@ -642,3 +642,390 @@ if true then
       end
   end)
 end
+
+addCheckBox("autoReconnect", "Auto Reconnect", false, rightPanel, "Reconnect to the last character after disconnect.")
+addScrollBar("autoReconnectDelay", "Reconnect Delay (s)", 1, 120, 5, rightPanel, "Delay in seconds between reconnect attempts.")
+addTextEdit("autoReconnectCharacter", "Reconnect Character", "", rightPanel, "Optional: force reconnect to this character name.")
+if true then
+  settings.autoReconnectLast = settings.autoReconnectLast or ""
+  local lastReconnect = 0
+
+  local function isOnline()
+    if g_game.isOnline then return g_game.isOnline() end
+    if g_game.isConnected then return g_game.isConnected() end
+    return g_game.getLocalPlayer() ~= nil
+  end
+
+  macro(1000, function()
+    if not settings.autoReconnect then return end
+    if isOnline() then
+      settings.autoReconnectLast = name()
+      lastReconnect = now
+      return
+    end
+
+    local delay = (settings.autoReconnectDelay or 5) * 1000
+    if now - lastReconnect < delay then return end
+
+    local root = g_ui.getRootWidget()
+    if not root or not root.charactersWindow or not root.charactersWindow:isVisible() then return end
+
+    local charName = settings.autoReconnectCharacter
+    if not charName or charName:len() == 0 then
+      charName = settings.autoReconnectLast
+    end
+    if not charName or charName:len() == 0 then return end
+
+    relogOnCharacter(charName)
+    lastReconnect = now
+  end)
+end
+
+addCheckBox("bossRaidTimer", "Boss/Raid Timer", false, rightPanel, "Warns before fixed boss/raid schedule.")
+addScrollBar("bossRaidWarn", "Boss/Raid Warn (min)", 1, 60, 10, rightPanel, "Minutes before event to warn.")
+if true then
+  local bossRaidSchedule = {
+    {type = "Boss", name = "Boss", hour = 20, minute = 0},
+    {type = "Raid", name = "Raid", hour = 21, minute = 0}
+  }
+  local bossRaidState = {}
+
+  local function nextScheduleTime(event)
+    local nowDate = os.date("*t")
+    local target = {
+      year = nowDate.year,
+      month = nowDate.month,
+      day = nowDate.day,
+      hour = event.hour,
+      min = event.minute,
+      sec = 0
+    }
+    local targetTime = os.time(target)
+    if targetTime <= os.time() then
+      target.day = target.day + 1
+      targetTime = os.time(target)
+    end
+    return targetTime
+  end
+
+  macro(1000, function()
+    if not settings.bossRaidTimer then return end
+    local warnBefore = (settings.bossRaidWarn or 10) * 60
+    local nowTime = os.time()
+    for _, event in ipairs(bossRaidSchedule) do
+      local key = event.type .. ":" .. event.name
+      local nextTime = nextScheduleTime(event)
+      local state = bossRaidState[key] or {}
+      if state.nextTime ~= nextTime then
+        state = {nextTime = nextTime, warnedSoon = false, warnedStart = false}
+        bossRaidState[key] = state
+      end
+
+      local timeLeft = nextTime - nowTime
+      if timeLeft <= 0 then
+        if not state.warnedStart then
+          warn("[Timers] " .. event.type .. " " .. event.name .. " started.")
+          state.warnedStart = true
+        end
+      elseif timeLeft <= warnBefore and not state.warnedSoon then
+        local minutes = math.ceil(timeLeft / 60)
+        warn("[Timers] " .. event.type .. " " .. event.name .. " in " .. minutes .. " min.")
+        state.warnedSoon = true
+      end
+    end
+  end)
+end
+
+addCheckBox("staminaPotion", "Auto Stamina Potion", false, rightPanel, "Use stamina potion when stamina is below set value.")
+addItem("staminaPotionId", "Stamina Potion", 0, rightPanel, "Item ID used for stamina potion.")
+addScrollBar("staminaPotionValue", "Stamina Potion Below", 0, 2520, 900, rightPanel, "Stamina value in minutes.")
+if true then
+  local lastStaminaUse = 0
+  macro(1000, function()
+    if not settings.staminaPotion then return end
+    local itemId = tonumber(settings.staminaPotionId or 0)
+    if itemId < 100 then return end
+    local minStamina = tonumber(settings.staminaPotionValue or 0)
+    if minStamina <= 0 or stamina() >= minStamina then return end
+    if vBot.isUsingPotion or now - lastStaminaUse < 1500 then return end
+
+    local potion = findItem(itemId)
+    if potion then
+      use(potion)
+      lastStaminaUse = now
+    end
+  end)
+end
+
+addCheckBox("storeSell", "Store Sell Item", false, rightPanel, "Use store sell item to sell loot.")
+addItem("storeSellItemId", "Store Sell Item", 0, rightPanel, "Item ID for store sell item.")
+addCheckBox("storeBank", "Store Bank Item", false, rightPanel, "Use store bank item to deposit gold.")
+addItem("storeBankItemId", "Store Bank Item", 0, rightPanel, "Item ID for store bank item.")
+addScrollBar("storeItemDelay", "Store Item Delay (s)", 1, 60, 5, rightPanel, "Delay in seconds between uses.")
+if true then
+  local lastStoreUse = {sell = 0, bank = 0}
+
+  local function useStoreItem(itemId, key)
+    if itemId < 100 then return end
+    local delay = (settings.storeItemDelay or 5) * 1000
+    if now - lastStoreUse[key] < delay then return end
+    local item = findItem(itemId)
+    if item then
+      use(item)
+      lastStoreUse[key] = now
+    end
+  end
+
+  macro(1000, function()
+    if settings.storeSell then
+      useStoreItem(tonumber(settings.storeSellItemId or 0), "sell")
+    end
+    if settings.storeBank then
+      useStoreItem(tonumber(settings.storeBankItemId or 0), "bank")
+    end
+  end)
+end
+
+addCheckBox("houseTrainer", "House Trainer", false, rightPanel, "Attack training dummies when in protection zone.")
+addTextEdit("houseTrainerNames", "Trainer Names", "training", rightPanel, "Comma-separated trainer names to attack.")
+addScrollBar("houseTrainerRange", "Trainer Range", 1, 10, 3, rightPanel, "Maximum distance to trainer.")
+if true then
+  local function parseNameList(value)
+    local list = {}
+    if not value or value:len() == 0 then return list end
+    for _, entry in ipairs(string.split(value, ",")) do
+      local name = entry:trim():lower()
+      if name:len() > 0 then
+        table.insert(list, name)
+      end
+    end
+    return list
+  end
+
+  local function isTrainer(creature, names)
+    local cname = creature:getName():lower()
+    for _, name in ipairs(names) do
+      if cname:find(name, 1, true) then
+        return true
+      end
+    end
+    return false
+  end
+
+  macro(1000, function()
+    if not settings.houseTrainer or not isInPz() then return end
+    local names = parseNameList(settings.houseTrainerNames)
+    if #names == 0 then return end
+    if g_game.isAttacking() and target() and not isTrainer(target(), names) then return end
+    local maxRange = tonumber(settings.houseTrainerRange or 3)
+
+    for _, spec in ipairs(getSpectators()) do
+      if (spec:isNpc() or spec:isMonster()) and distanceFromPlayer(spec:getPosition()) <= maxRange and isTrainer(spec, names) then
+        g_game.attack(spec)
+        return
+      end
+    end
+  end)
+end
+
+addCheckBox("bossDodge", "Boss Dodge", false, rightPanel, "Step away from bosses when too close.")
+addTextEdit("bossDodgeNames", "Boss Names", "", rightPanel, "Comma-separated boss names (uses EQ Manager list if empty).")
+addScrollBar("bossDodgeRange", "Boss Dodge Range", 1, 3, 1, rightPanel, "Dodge when boss is within range.")
+addScrollBar("bossDodgeDelay", "Boss Dodge Delay (ms)", 100, 2000, 600, rightPanel, "Delay between dodge steps.")
+if true then
+  local lastDodge = 0
+
+  local function getBossNames()
+    local names = {}
+    if settings.bossDodgeNames and settings.bossDodgeNames:len() > 0 then
+      for _, entry in ipairs(string.split(settings.bossDodgeNames, ",")) do
+        local name = entry:trim():lower()
+        if name:len() > 0 then
+          table.insert(names, name)
+        end
+      end
+    elseif storage.EquipperPanel and type(storage.EquipperPanel.bosses) == "table" then
+      for _, boss in ipairs(storage.EquipperPanel.bosses) do
+        if boss and boss:len() > 0 then
+          table.insert(names, boss:lower())
+        end
+      end
+    end
+    return names
+  end
+
+  local function isBoss(creature)
+    if not creature then return false end
+    local bossNames = getBossNames()
+    if #bossNames == 0 then return false end
+    local cname = creature:getName():lower()
+    for _, name in ipairs(bossNames) do
+      if cname:find(name, 1, true) then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function getDodgePos(bossPos)
+    local playerPos = pos()
+    local dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}}
+    local bestPos
+    local bestDist = getDistanceBetween(playerPos, bossPos)
+    for _, dir in ipairs(dirs) do
+      local candidate = {x = playerPos.x + dir[1], y = playerPos.y + dir[2], z = playerPos.z}
+      local tile = g_map.getTile(candidate)
+      if tile and tile:isWalkable(false) and not tile:hasCreature() then
+        local dist = getDistanceBetween(candidate, bossPos)
+        if dist > bestDist then
+          bestDist = dist
+          bestPos = candidate
+        end
+      end
+    end
+    return bestPos
+  end
+
+  macro(50, function()
+    if not settings.bossDodge then return end
+    local boss = target()
+    if not boss or not isBoss(boss) then return end
+    local range = tonumber(settings.bossDodgeRange or 1)
+    if distanceFromPlayer(boss:getPosition()) > range then return end
+    local delay = tonumber(settings.bossDodgeDelay or 600)
+    if now - lastDodge < delay then return end
+    local dodgePos = getDodgePos(boss:getPosition())
+    if dodgePos then
+      autoWalk(dodgePos, 20, {ignoreNonPathable = true, precision = 1})
+      lastDodge = now
+    end
+  end)
+end
+
+addCheckBox("buffRenew", "Buff Renew", false, rightPanel, "Recast buff spell when it expires.")
+addTextEdit("buffRenewSpell", "Buff Spell", "", rightPanel, "Spell to keep active (e.g. utito tempo).")
+addScrollBar("buffRenewMana", "Buff Min Mana %", 0, 100, 20, rightPanel, "Minimum mana percent to cast.")
+addScrollBar("buffRenewDelay", "Buff Delay (s)", 1, 60, 5, rightPanel, "Delay between buff attempts.")
+if true then
+  local lastBuff = 0
+  macro(500, function()
+    if not settings.buffRenew then return end
+    if not settings.buffRenewSpell or settings.buffRenewSpell:len() == 0 then return end
+    if isBuffed() or manapercent() < (settings.buffRenewMana or 0) then return end
+    local delay = (settings.buffRenewDelay or 5) * 1000
+    if now - lastBuff < delay then return end
+    castSpell(settings.buffRenewSpell)
+    lastBuff = now
+  end)
+end
+
+addCheckBox("taskRenew", "Task Renew", false, rightPanel, "Send task command when no task is active.")
+addTextEdit("taskRenewNpc", "Task NPC", "", rightPanel, "Optional NPC name to be nearby.")
+addTextEdit("taskRenewCommand", "Task Command", "task", rightPanel, "Command to request a task.")
+addScrollBar("taskRenewDelay", "Task Renew Delay (s)", 5, 120, 30, rightPanel, "Delay between attempts.")
+if true then
+  local lastTaskRenew = 0
+
+  local function hasTaskNpc()
+    if not settings.taskRenewNpc or settings.taskRenewNpc:len() == 0 then return true end
+    for _, spec in ipairs(getSpectators()) do
+      if spec:isNpc() and spec:getName():lower() == settings.taskRenewNpc:lower() and distanceFromPlayer(spec:getPosition()) <= 3 then
+        return true
+      end
+    end
+    return false
+  end
+
+  macro(1000, function()
+    if not settings.taskRenew or not storage.caveBotTasker or storage.caveBotTasker.inProgress then return end
+    if not hasTaskNpc() then return end
+    if not settings.taskRenewCommand or settings.taskRenewCommand:len() == 0 then return end
+    local delay = (settings.taskRenewDelay or 30) * 1000
+    if now - lastTaskRenew < delay then return end
+    say(settings.taskRenewCommand)
+    lastTaskRenew = now
+  end)
+end
+
+addCheckBox("turboFollow", "Turbo Follow", false, rightPanel, "Aggressive follow for selected player.")
+addTextEdit("turboFollowName", "Turbo Follow Name", "", rightPanel, "Name of the creature to follow.")
+addScrollBar("turboFollowDelay", "Turbo Follow Delay (ms)", 50, 2000, 100, rightPanel, "Delay between follow steps.")
+addScrollBar("turboFollowDistance", "Turbo Follow Distance", 1, 10, 2, rightPanel, "Follow when farther than this distance.")
+if true then
+  local toFollowPos = {}
+  local lastFollow = 0
+
+  local function updateFollowPos(creature)
+    if not creature then return end
+    toFollowPos[creature:getPosition().z] = creature:getPosition()
+  end
+
+  macro(50, function()
+    if not settings.turboFollow or (CaveBot and CaveBot.isOn and CaveBot.isOn()) then return end
+    if not settings.turboFollowName or settings.turboFollowName:len() == 0 then return end
+    local delay = tonumber(settings.turboFollowDelay or 100)
+    if now - lastFollow < delay then return end
+    local followName = settings.turboFollowName
+    local creature = getCreatureByName(followName)
+    if creature then
+      updateFollowPos(creature)
+    end
+    if player:isWalking() then return end
+    local followPos = toFollowPos[posz()]
+    if not followPos or distanceFromPlayer(followPos) <= (settings.turboFollowDistance or 2) then return end
+    autoWalk(followPos, 20, {ignoreNonPathable = true, precision = 1})
+    lastFollow = now
+  end)
+
+  onCreaturePositionChange(function(creature, oldPos, newPos)
+    if not settings.turboFollow or not settings.turboFollowName or settings.turboFollowName:len() == 0 then return end
+    if creature:getName():lower() == settings.turboFollowName:lower() and newPos then
+      toFollowPos[newPos.z] = newPos
+    end
+  end)
+end
+
+addCheckBox("antiPushDrop", "Anti-Push Drop", false, rightPanel, "Drop items under you to avoid being pushed.")
+addTextEdit("antiPushDropItems", "Anti-Push Items", "3031", rightPanel, "Comma-separated item IDs to drop.")
+addScrollBar("antiPushDropDelay", "Anti-Push Delay (ms)", 100, 5000, 600, rightPanel, "Delay between drops.")
+if true then
+  local lastDrop = 0
+
+  local function parseItemIds(value)
+    local list = {}
+    if not value or value:len() == 0 then return list end
+    for _, entry in ipairs(string.split(value, ",")) do
+      local id = tonumber(entry:trim())
+      if id then
+        table.insert(list, id)
+      end
+    end
+    return list
+  end
+
+  macro(100, function()
+    if not settings.antiPushDrop then return end
+    local delay = tonumber(settings.antiPushDropDelay or 600)
+    if now - lastDrop < delay then return end
+    local ids = parseItemIds(settings.antiPushDropItems)
+    if #ids == 0 then return end
+
+    local tile = g_map.getTile(pos())
+    if not tile then return end
+    for _, item in ipairs(tile:getItems()) do
+      if table.find(ids, item:getId()) then
+        return
+      end
+    end
+
+    for _, id in ipairs(ids) do
+      local item = findItem(id)
+      if item then
+        local amount = item:isStackable() and 1 or item:getCount()
+        g_game.move(item, pos(), amount)
+        lastDrop = now
+        return
+      end
+    end
+  end)
+end
