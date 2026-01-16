@@ -16,7 +16,10 @@ local checkBoxes = {}
 local iconWidgets = {}
 
 -- basic elements
-if not toolsPanel and rootWidget then
+if not toolsPanel and not rootWidget then
+  return
+end
+if not toolsPanel then
   warn("[vBot extras] Tools tab not found, attaching extras panel to root.")
 end
 extrasWindow = UI.createWidget('ExtrasWindow', toolsPanel or rootWidget)
