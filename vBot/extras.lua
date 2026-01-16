@@ -8,7 +8,7 @@ end
 local settings = storage[panelName]
 rootWidget = rootWidget or g_ui.getRootWidget()
 local addIcon = addIcon or (modules.game_bot and modules.game_bot.addIcon)
-local toolsPanel = modules.game_bot and modules.game_bot.contentsPanel and (modules.game_bot.contentsPanel:getChildById("Tools") or modules.game_bot.contentsPanel)
+local toolsPanel = modules.game_bot and modules.game_bot.contentsPanel and modules.game_bot.contentsPanel:getChildById("Tools")
 local checkBoxes = {}
 local iconWidgets = {}
 
