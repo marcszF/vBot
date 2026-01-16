@@ -8,11 +8,17 @@ end
 local settings = storage[panelName]
 rootWidget = rootWidget or g_ui.getRootWidget()
 local addIcon = addIcon or (modules.game_bot and modules.game_bot.addIcon)
-local toolsPanel = modules.game_bot and modules.game_bot.contentsPanel and modules.game_bot.contentsPanel:getChildById("Tools")
+local toolsPanel = nil
+if modules.game_bot and modules.game_bot.contentsPanel then
+  toolsPanel = modules.game_bot.contentsPanel:getChildById("Tools")
+end
 local checkBoxes = {}
 local iconWidgets = {}
 
 -- basic elements
+if not toolsPanel and rootWidget then
+  warn("[vBot extras] Tools tab not found, attaching extras panel to root.")
+end
 extrasWindow = UI.createWidget('ExtrasWindow', toolsPanel or rootWidget)
 extrasWindow.onGeometryChange = function(widget, old, new)
   if old.height == 0 then return end
