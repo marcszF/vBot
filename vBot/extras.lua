@@ -1,4 +1,4 @@
-setDefaultTab("Tools")
+setDefaultTab("Main")
 
 -- securing storage namespace
 local panelName = "extras"
