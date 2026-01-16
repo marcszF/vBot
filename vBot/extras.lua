@@ -6,6 +6,7 @@ if not storage[panelName] then
   storage[panelName] = {}
 end
 local settings = storage[panelName]
+rootWidget = rootWidget or g_ui.getRootWidget()
 local addIcon = addIcon or (modules.game_bot and modules.game_bot.addIcon)
 local checkBoxes = {}
 local iconWidgets = {}
