@@ -8,11 +8,12 @@ end
 local settings = storage[panelName]
 rootWidget = rootWidget or g_ui.getRootWidget()
 local addIcon = addIcon or (modules.game_bot and modules.game_bot.addIcon)
+local toolsPanel = modules.game_bot and modules.game_bot.contentsPanel and (modules.game_bot.contentsPanel:getChildById("Tools") or modules.game_bot.contentsPanel)
 local checkBoxes = {}
 local iconWidgets = {}
 
 -- basic elements
-extrasWindow = UI.createWidget('ExtrasWindow')
+extrasWindow = UI.createWidget('ExtrasWindow', toolsPanel or rootWidget)
 extrasWindow.onGeometryChange = function(widget, old, new)
   if old.height == 0 then return end
   settings.height = new.height
