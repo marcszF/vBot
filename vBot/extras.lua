@@ -1,5 +1,3 @@
-setDefaultTab("Tools")
-
 -- securing storage namespace
 local panelName = "extras"
 if not storage[panelName] then
@@ -17,6 +15,7 @@ local iconWidgets = {}
 
 -- basic elements
 if not toolsPanel and not rootWidget then
+  warn("[vBot extras] Unable to attach extras panel, missing root widget.")
   return
 end
 if not toolsPanel then
