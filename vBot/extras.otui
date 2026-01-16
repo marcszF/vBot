@@ -62,9 +62,8 @@ ExtrasCheckBox < BotSwitch
   height: 20
   margin-top: 7
 
-ExtrasWindow < MainWindow
-  !text: tr('Extras')
-  size: 440 360
+ExtrasWindow < Panel
+  height: 360
   padding: 25
 
   Label
@@ -86,7 +85,7 @@ ExtrasWindow < MainWindow
     anchors.top: prev.bottom
     margin-top: 3
     anchors.right: parent.right
-    anchors.bottom: separator.top
+    anchors.bottom: parent.bottom
     step: 28
     pixels-scroll: true
     margin-right: -10
@@ -98,7 +97,7 @@ ExtrasWindow < MainWindow
     anchors.top: prev.top
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.bottom: separator.top
+    anchors.bottom: parent.bottom
     vertical-scrollbar: contentScroll
     margin-bottom: 10
       
@@ -126,33 +125,19 @@ ExtrasWindow < MainWindow
         type: verticalBox
         fit-children: true
 
-    VerticalSeparator
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.left: parent.horizontalCenter
-
-  HorizontalSeparator
-    id: separator
-    anchors.right: parent.right
-    anchors.left: parent.left
-    anchors.bottom: closeButton.top
-    margin-bottom: 8
+  VerticalSeparator
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.left: parent.horizontalCenter
 
   ResizeBorder
     id: bottomResizeBorder
-    anchors.fill: separator
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
     height: 3
     minimum: 260
     maximum: 600
     margin-left: 3
     margin-right: 3
-    background: #ffffff88    
-
-  Button
-    id: closeButton
-    !text: tr('Close')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 45 21
-    margin-right: 5
+    background: #ffffff88

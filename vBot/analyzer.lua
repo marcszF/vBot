@@ -708,9 +708,10 @@ local expLeft = function()
 end
 
 niceTimeFormat = function(v, seconds) -- v in seconds
+  v = tonumber(v) or 0
   local hours = string.format("%02.f", math.floor(v/3600))
   local mins = string.format("%02.f", math.floor(v/60 - (hours*60)))
-  local secs = string.format("%02.f", math.floor(math.mod(v, 60)))
+  local secs = string.format("%02.f", math.floor(v % 60))
 
   local final = string.format('%s:%s%s',hours,mins,seconds and ":"..secs or "")
  return final
