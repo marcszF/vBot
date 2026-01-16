@@ -236,7 +236,7 @@ if true then
   -- script
   if settings.useAll and settings.useAll:len() > 0 then
     hotkey(settings.useAll, function()
-        if not modules.game_walking.wsadWalking then return end
+        if not (modules.game_walking and modules.game_walking.wsadWalking) then return end
         for _, tile in pairs(g_map.getTiles(posz())) do
             if distanceFromPlayer(tile:getPosition()) < 2 then
                 for _, item in pairs(tile:getItems()) do
@@ -394,7 +394,7 @@ if true then
   end
 
   onKeyPress(function(keys)
-    local wsadWalking = modules.game_walking.wsadWalking
+    local wsadWalking = modules.game_walking and modules.game_walking.wsadWalking
     if not settings.autoOpenDoors then return end
     local pos = player:getPosition()
     if keys == 'Up' or (wsadWalking and keys == 'W') then
@@ -534,7 +534,7 @@ if true then
   end)
 
   onKeyDown(function(keys)
-    local wsadWalking = modules.game_walking.wsadWalking
+    local wsadWalking = modules.game_walking and modules.game_walking.wsadWalking
     if not wsadWalking then return end
     if not settings.holdMwall then return end
     if m.isOff() then return end
@@ -557,7 +557,7 @@ if true then
   end)
 
   onKeyPress(function(keys)
-    local wsadWalking = modules.game_walking.wsadWalking
+    local wsadWalking = modules.game_walking and modules.game_walking.wsadWalking
     if not wsadWalking then return end
     if not settings.holdMwall then return end
     if m.isOff() then return end
