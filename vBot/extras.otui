@@ -62,9 +62,8 @@ ExtrasCheckBox < BotSwitch
   height: 20
   margin-top: 7
 
-ExtrasWindow < MainWindow
-  !text: tr('Extras')
-  size: 440 360
+ExtrasWindow < Panel
+  height: 360
   padding: 25
 
   Label
@@ -126,17 +125,17 @@ ExtrasWindow < MainWindow
         type: verticalBox
         fit-children: true
 
-    VerticalSeparator
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.left: parent.horizontalCenter
+  VerticalSeparator
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.left: parent.horizontalCenter
 
   HorizontalSeparator
     id: separator
     anchors.right: parent.right
     anchors.left: parent.left
-    anchors.bottom: closeButton.top
-    margin-bottom: 8
+    anchors.bottom: parent.bottom
+    margin-bottom: 5
 
   ResizeBorder
     id: bottomResizeBorder
@@ -146,13 +145,4 @@ ExtrasWindow < MainWindow
     maximum: 600
     margin-left: 3
     margin-right: 3
-    background: #ffffff88    
-
-  Button
-    id: closeButton
-    !text: tr('Close')
-    font: cipsoftFont
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    size: 45 21
-    margin-right: 5
+    background: #ffffff88

@@ -1,4 +1,4 @@
-setDefaultTab("Main")
+setDefaultTab("Tools")
 
 -- securing storage namespace
 local panelName = "extras"
@@ -12,18 +12,11 @@ local checkBoxes = {}
 local iconWidgets = {}
 
 -- basic elements
-extrasWindow = UI.createWindow('ExtrasWindow', rootWidget)
-extrasWindow:hide()
-extrasWindow.closeButton.onClick = function(widget)
-  extrasWindow:hide()
-end
-
+extrasWindow = UI.createWidget('ExtrasWindow')
 extrasWindow.onGeometryChange = function(widget, old, new)
   if old.height == 0 then return end
-  
   settings.height = new.height
 end
-
 extrasWindow:setHeight(settings.height or 360)
 
 -- available options for dest param
@@ -149,13 +142,6 @@ local addScrollBar = function(id, title, min, max, defaultValue, dest, tooltip)
   widget.scroll:setValue(settings[id] or defaultValue)
   widget.scroll.onValueChange(widget.scroll, widget.scroll:getValue())
 end
-
-UI.Button("vBot Settings and Scripts", function()
-  extrasWindow:show()
-  extrasWindow:raise()
-  extrasWindow:focus()
-end)
-UI.Separator()
 
 ---- to maintain order, add options right after another:
 --- add object
