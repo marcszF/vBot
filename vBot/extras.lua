@@ -229,7 +229,6 @@ if true then
   local macheteId = { 2130, 3696 }
   local scytheId = { 3653 }
 
-  setDefaultTab("Tools")
   -- script
   if settings.useAll and settings.useAll:len() > 0 then
     hotkey(settings.useAll, function()
